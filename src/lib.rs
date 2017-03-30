@@ -64,5 +64,7 @@ pub mod log;
 mod seeded_rng;
 /// Functions for serialisation and deserialisation
 pub mod serialisation;
+/// Fake clock for testing
+pub mod fake_clock;
 
 pub use seeded_rng::SeededRng;
