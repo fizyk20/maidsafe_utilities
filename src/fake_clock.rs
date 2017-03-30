@@ -1,16 +1,19 @@
 use std::cell::{RefCell, RefMut};
 use std::cmp::Ordering;
 use std::fmt;
+use std::ops::{Add, Sub};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 /// Trait representing an object tracking the flow of time
-pub trait Clock: Eq + Ord + Clone + fmt::Debug {
-    /// Returns an instance representing the current moment in time
+pub trait Clock
+    : Eq + Ord + Clone + fmt::Debug + Add<Duration, Output = Self> + Sub<Duration, Output = Self> + Sub<Self, Output=Duration>
+    {
+/// Returns an instance representing the current moment in time
     fn now() -> Self;
-    /// Returns the duration between `self` and `earlier`
+/// Returns the duration between `self` and `earlier`
     fn duration_since(&self, earlier: &Self) -> Duration;
-    /// Returns the amount of time elapsed since creation of `self`
+/// Returns the amount of time elapsed since creation of `self`
     fn elapsed(&self) -> Duration;
 }
 
@@ -111,5 +114,28 @@ impl fmt::Debug for FakeClock {
         write!(formatter,
                "FakeClock {{ time_created: {} }}",
                self.time_created)
+    }
+}
+
+impl Add<Duration> for FakeClock {
+    type Output = FakeClock;
+    fn add(mut self, other: Duration) -> FakeClock {
+        self.time_created += other.as_secs() * 1000 + other.subsec_nanos() as u64 / 1000000;
+        self
+    }
+}
+
+impl Sub<Duration> for FakeClock {
+    type Output = FakeClock;
+    fn sub(mut self, other: Duration) -> FakeClock {
+        self.time_created -= other.as_secs() * 1000 + other.subsec_nanos() as u64 / 1000000;
+        self
+    }
+}
+
+impl Sub<FakeClock> for FakeClock {
+    type Output = Duration;
+    fn sub(self, other: FakeClock) -> Duration {
+        Duration::from_millis(self.time_created - other.time_created)
     }
 }
