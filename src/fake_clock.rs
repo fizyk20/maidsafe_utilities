@@ -1,10 +1,11 @@
 use std::cell::{RefCell, RefMut};
 use std::cmp::Ordering;
+use std::fmt;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 /// Trait representing an object tracking the flow of time
-pub trait Clock: Eq + Ord + Clone {
+pub trait Clock: Eq + Ord + Clone + fmt::Debug {
     /// Returns an instance representing the current moment in time
     fn now() -> Self;
     /// Returns the duration between `self` and `earlier`
@@ -102,5 +103,13 @@ impl PartialOrd for FakeClock {
 impl Ord for FakeClock {
     fn cmp(&self, other: &FakeClock) -> Ordering {
         self.time_created.cmp(&other.time_created)
+    }
+}
+
+impl fmt::Debug for FakeClock {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter,
+               "FakeClock {{ time_created: {} }}",
+               self.time_created)
     }
 }
