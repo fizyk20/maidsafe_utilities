@@ -1,9 +1,10 @@
 use std::cell::{RefCell, RefMut};
+use std::cmp::Ordering;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 /// Trait representing an object tracking the flow of time
-pub trait Clock {
+pub trait Clock: Eq + Ord + Clone {
     /// Returns an instance representing the current moment in time
     fn now() -> Self;
     /// Returns the duration between `self` and `earlier`
@@ -27,6 +28,7 @@ impl Clock for Instant {
 }
 
 /// Struct representing a fake instant
+#[derive(Clone)]
 pub struct FakeClock {
     time: Rc<RefCell<u64>>,
     time_created: u64,
@@ -80,5 +82,25 @@ impl Clock for FakeClock {
 
     fn elapsed(&self) -> Duration {
         Duration::from_millis(self.time() - self.time_created)
+    }
+}
+
+impl PartialEq for FakeClock {
+    fn eq(&self, other: &FakeClock) -> bool {
+        self.time_created == other.time_created
+    }
+}
+
+impl Eq for FakeClock {}
+
+impl PartialOrd for FakeClock {
+    fn partial_cmp(&self, other: &FakeClock) -> Option<Ordering> {
+        self.time_created.partial_cmp(&other.time_created)
+    }
+}
+
+impl Ord for FakeClock {
+    fn cmp(&self, other: &FakeClock) -> Ordering {
+        self.time_created.cmp(&other.time_created)
     }
 }
