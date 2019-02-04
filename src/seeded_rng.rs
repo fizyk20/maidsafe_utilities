@@ -7,7 +7,8 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use rand::{self, Rng, SeedableRng, XorShiftRng};
+use rand::{self, Error, Rng, RngCore, SeedableRng};
+use rand_xorshift::XorShiftRng;
 use std::cell::RefCell;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -29,6 +30,28 @@ thread_local! {
 /// in which it is created panics.
 pub struct SeededRng(XorShiftRng);
 
+/// Compatibility function: converts the old-style seed (`[u32; 4]`) to a new-style one (`[u8; 16]`)
+pub fn convert_seed(arr: [u32; 4]) -> [u8; 16] {
+    [
+        (arr[0] & 0xFF) as u8,
+        ((arr[0] >> 8) & 0xFF) as u8,
+        ((arr[0] >> 16) & 0xFF) as u8,
+        ((arr[0] >> 24) & 0xFF) as u8,
+        (arr[1] & 0xFF) as u8,
+        ((arr[1] >> 8) & 0xFF) as u8,
+        ((arr[1] >> 16) & 0xFF) as u8,
+        ((arr[1] >> 24) & 0xFF) as u8,
+        (arr[2] & 0xFF) as u8,
+        ((arr[2] >> 8) & 0xFF) as u8,
+        ((arr[2] >> 16) & 0xFF) as u8,
+        ((arr[2] >> 24) & 0xFF) as u8,
+        (arr[3] & 0xFF) as u8,
+        ((arr[3] >> 8) & 0xFF) as u8,
+        ((arr[3] >> 16) & 0xFF) as u8,
+        ((arr[3] >> 24) & 0xFF) as u8,
+    ]
+}
+
 impl SeededRng {
     /// Construct a new `SeededRng` using a seed generated from cryptographically secure random
     /// data.
@@ -49,7 +72,7 @@ impl SeededRng {
             *optional_seed = Some(new_seed);
             new_seed
         };
-        SeededRng(XorShiftRng::from_seed(seed))
+        SeededRng(XorShiftRng::from_seed(convert_seed(seed)))
     }
 
     /// Construct a new `SeededRng` using `seed`.
@@ -72,7 +95,7 @@ impl SeededRng {
             *optional_seed = Some(seed);
         }
 
-        SeededRng(XorShiftRng::from_seed(seed))
+        SeededRng(XorShiftRng::from_seed(convert_seed(seed)))
     }
 
     /// Constructs a thread-local `SeededRng`. The seed is generated via a global `SeededRng` using
@@ -96,7 +119,7 @@ impl SeededRng {
             self.0.next_u32().wrapping_add(self.0.next_u32()),
             self.0.next_u32().wrapping_add(self.0.next_u32()),
         ];
-        SeededRng(XorShiftRng::from_seed(new_seed))
+        SeededRng(XorShiftRng::from_seed(convert_seed(new_seed)))
     }
 }
 
@@ -132,26 +155,23 @@ impl Drop for SeededRng {
     }
 }
 
-impl Rng for SeededRng {
+// TODO: make sure that the values being returned are consistent across CPU architectures (32/64
+// bit, big/little-endian)
+impl RngCore for SeededRng {
     fn next_u32(&mut self) -> u32 {
-        self.0.next_u32()
+        self.0.next_u64() as u32
     }
 
-    fn choose<'a, T>(&mut self, arg: &'a [T]) -> Option<&'a T> {
-        if arg.is_empty() {
-            None
-        } else {
-            let index = self.gen_range(0, arg.len() as u32) as usize;
-            Some(&arg[index])
-        }
+    fn next_u64(&mut self) -> u64 {
+        self.0.next_u64()
     }
 
-    fn shuffle<T>(&mut self, values: &mut [T]) {
-        let mut i = values.len();
-        while i >= 2 {
-            i -= 1;
-            values.swap(i, self.gen_range(0, (i + 1) as u32) as usize);
-        }
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        self.0.fill_bytes(dest)
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
+        self.0.try_fill_bytes(dest)
     }
 }
 

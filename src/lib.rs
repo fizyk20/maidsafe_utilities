@@ -92,4 +92,4 @@ pub mod serialisation;
 /// Utilities related to threading.
 pub mod thread;
 
-pub use crate::seeded_rng::SeededRng;
+pub use crate::seeded_rng::{convert_seed, SeededRng};
